@@ -21,8 +21,44 @@ class SmsExpenseCandidate {
 }
 
 class SmsExpenseImporter {
-  Future<List<SmsExpenseCandidate>> fetchRecentExpenses() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+  Future<List<SmsExpenseCandidate>> fetchRecentExpenses({String? manualText})
+      async {
+    if (kIsWeb) {
+      throw UnsupportedError('SMS import is not available on web builds.');
+    }
+
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      final text = (manualText ?? '').trim();
+      if (text.isEmpty) {
+        throw UnsupportedError(
+          'iOS does not allow reading the SMS inbox. Paste a recent SMS text to import it manually.',
+        );
+      }
+      final parsed = _parseTransaction(text);
+      if (parsed == null) {
+        throw StateError(
+          'No transaction could be detected in the pasted SMS text.',
+        );
+      }
+      final date = DateTime.now();
+      final fingerprint = '${date.millisecondsSinceEpoch}-${parsed.amount}';
+      return [
+        SmsExpenseCandidate(
+          id: fingerprint,
+          expense: Expense(
+            id: fingerprint.hashCode & 0x7fffffff,
+            title: parsed.title,
+            amount: parsed.amount,
+            category: parsed.category,
+            timestamp: date,
+            note: 'Imported from pasted SMS',
+          ),
+          preview: _safePreview(text),
+        ),
+      ];
+    }
+
+    if (defaultTargetPlatform != TargetPlatform.android) {
       throw UnsupportedError('SMS import is available on Android only.');
     }
 

@@ -39,7 +39,7 @@
 | **Sorting** | Newest, Oldest, Amount High, Amount Low |
 | **Filtering** | By category (case-insensitive) or show all |
 | **Voice Entry (No AI parsing)** | Device speech recognition with local rule-based amount/category parsing and an editable preview; available speech services vary by device |
-| **SMS Import (Android)** | On demand, checks up to 100 recent inbox messages and lets the user review candidates before importing |
+| **SMS Import** | On Android, checks up to 100 recent inbox messages; on iOS, users can paste a recent transaction SMS for manual review and import |
 
 ### 🧭 Financial Planning
 | Feature | Description |
@@ -82,11 +82,11 @@
 | **Expense Records** | In-memory for the current process |
 | **Investments, Loans, Bills** | `SharedPreferences` on-device persistence |
 | **Voice** | `speech_to_text` transcription and local rule-based parsing |
-| **SMS** | Android inbox query with permission request and user review |
+| **SMS** | Android inbox query with permission request and user review; iOS supports manual pasted-SMS parsing |
 | **Notifications** | `flutter_local_notifications` with timezone scheduling |
 | **Export** | `.xlsx` generation and Android Downloads method channel |
 
-> **Platform notes:** SMS import is Android-only. Bill reminders support Android and iOS. Direct `.xlsx` saving is Android-only. Financial projections are estimates, not guarantees.
+> **Platform notes:** Android supports direct inbox SMS import. iOS does not allow reading the inbox, so the app offers a manual paste workflow for transaction SMS text. Bill reminders support Android and iOS. Direct `.xlsx` saving is Android-only. Financial projections are estimates, not guarantees.
 
 ---
 
@@ -201,7 +201,7 @@ flutter run -d <device-id>   # android, ios, chrome, windows, macos, linux
 - ✅ Filtered expense export to an `.xlsx` file in Android Downloads
 - ✅ Responsive breakpoints (<600px, <400px)
 - ✅ Voice expense entry without AI parsing
-- ✅ On-demand SMS transaction import on Android
+- ✅ On-demand SMS transaction import on Android and a manual pasted-SMS import workflow on iOS
 - ✅ Locally stored investments, loans and bills with estimated return/EMI calculations
 - ✅ Daily local bill due-date reminders on Android and iOS
 - ✅ Screen and component transitions that respect reduced-motion preferences

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'controllers/financial_controller.dart';
@@ -1664,6 +1665,7 @@ class _ExpenseDashboardState extends State<ExpenseDashboard> {
   }
 
   Widget _expenseInputActions() {
+    final isIos = defaultTargetPlatform == TargetPlatform.iOS;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1692,7 +1694,7 @@ class _ExpenseDashboardState extends State<ExpenseDashboard> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.sms_outlined, size: 18),
-              label: const Text('Import from SMS'),
+              label: Text(isIos ? 'Paste SMS import' : 'Import from SMS'),
               style: OutlinedButton.styleFrom(
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.symmetric(
@@ -1706,7 +1708,9 @@ class _ExpenseDashboardState extends State<ExpenseDashboard> {
         Padding(
           padding: const EdgeInsets.only(left: 4, top: 2),
           child: Text(
-            'SMS import is Android-only and reads messages only after you choose import.',
+            isIos
+                ? 'iOS cannot read your SMS inbox. Paste a recent transaction message to import it manually.'
+                : 'SMS import is Android-only and reads messages only after you choose import.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
@@ -1726,31 +1730,75 @@ class _ExpenseDashboardState extends State<ExpenseDashboard> {
   }
 
   Future<void> _importSmsExpenses() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Import expenses from SMS?'),
-        content: const Text(
-          'On Android, Finsify will read up to 100 recent inbox messages on '
-          'this device to find transaction alerts. You review each match before '
-          'adding it. Message contents are not uploaded or saved as message text.',
+    final isIos = defaultTargetPlatform == TargetPlatform.iOS;
+    String? inputText;
+
+    if (isIos) {
+      inputText = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) {
+          final controller = TextEditingController();
+          return AlertDialog(
+            title: const Text('Paste SMS transaction text'),
+            content: SizedBox(
+              width: 420,
+              child: TextField(
+                controller: controller,
+                maxLines: 8,
+                minLines: 4,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Example: HDFC Bank debited ₹249.00 for Swiggy',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, controller.text),
+                child: const Text('Parse SMS'),
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Import expenses from SMS?'),
+          content: const Text(
+            'On Android, Finsify will read up to 100 recent inbox messages on '
+            'this device to find transaction alerts. You review each match before '
+            'adding it. Message contents are not uploaded or saved as message text.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Continue'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
+    if (isIos && (inputText == null || inputText.trim().isEmpty)) return;
+    if (!mounted) return;
+
     setState(() => _importingSms = true);
     try {
-      final candidates = await _smsExpenseImporter.fetchRecentExpenses();
+      final candidates = isIos
+          ? await _smsExpenseImporter.fetchRecentExpenses(manualText: inputText)
+          : await _smsExpenseImporter.fetchRecentExpenses();
       if (!mounted) return;
       final existingIds = _controller.expenses.map((item) => item.id).toSet();
       final available = candidates
