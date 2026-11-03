@@ -32,6 +32,43 @@ class Expense {
       note: note ?? this.note,
     );
   }
+
+  Map<String, Object?> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'amount': amount,
+      'category': category,
+      'timestamp': timestamp.toIso8601String(),
+      'note': note,
+    };
+  }
+
+  factory Expense.fromMap(Map<String, Object?> map) {
+    return Expense(
+      id: map['id'] as int,
+      title: map['title'] as String,
+      amount: (map['amount'] as num).toDouble(),
+      category: map['category'] as String,
+      timestamp: DateTime.parse(map['timestamp'] as String),
+      note: (map['note'] as String?) ?? '',
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Expense &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          amount == other.amount &&
+          category == other.category &&
+          timestamp == other.timestamp &&
+          note == other.note;
+
+  @override
+  int get hashCode => Object.hash(id, title, amount, category, timestamp, note);
 }
 
 const expenseCategories = <String>[

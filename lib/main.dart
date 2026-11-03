@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'controllers/financial_controller.dart';
 import 'controllers/expense_controller.dart';
 import 'models/expense.dart';
+import 'models/profile_data.dart';
+import 'services/database_service.dart';
 import 'services/financial_services.dart';
 import 'services/xlsx_export_service.dart';
 import 'services/file_download_service.dart';
@@ -13,6 +15,8 @@ import 'widgets/analytics_bar_chart.dart';
 import 'widgets/financial_pages.dart';
 import 'widgets/voice_expense_dialog.dart';
 import 'theme/finsify_theme.dart';
+
+export 'models/profile_data.dart';
 
 void main() => runApp(const FinsifyApp());
 
@@ -34,21 +38,34 @@ class _FinsifyAppState extends State<FinsifyApp> {
       theme: buildFinsifyTheme(dark: false),
       darkTheme: buildFinsifyTheme(dark: true),
       home: SplashScreen(
-        onComplete: (_) => ProfileScreen(
-          destination: (profile) => ExpenseDashboard(
-            profile: profile,
-            onThemeChanged: (enabled) => setState(() => _darkTheme = enabled),
-          ),
-        ),
+        destination: (_, savedProfile) {
+          if (savedProfile != null && savedProfile.isNotEmpty) {
+            return ExpenseDashboard(
+              profile: savedProfile,
+              onThemeChanged: (enabled) => setState(() => _darkTheme = enabled),
+            );
+          }
+          return ProfileScreen(
+            destination: (profile) => ExpenseDashboard(
+              profile: profile,
+              onThemeChanged: (enabled) => setState(() => _darkTheme = enabled),
+            ),
+          );
+        },
       ),
     );
   }
 }
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({required this.onComplete, super.key});
+  const SplashScreen({
+    this.onComplete,
+    this.destination,
+    super.key,
+  });
 
-  final WidgetBuilder onComplete;
+  final WidgetBuilder? onComplete;
+  final Widget Function(BuildContext context, ProfileData? profile)? destination;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -58,6 +75,7 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _animationController;
   bool _completed = false;
+  ProfileData? _savedProfile;
 
   @override
   void initState() {
@@ -66,22 +84,30 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat();
+    DatabaseService.instance.getProfile().then((profile) {
+      _savedProfile = profile;
+    }).catchError((_) {
+      _savedProfile = null;
+    });
     Future<void>.delayed(const Duration(milliseconds: 2500), _complete);
   }
 
   void _complete() {
     if (!mounted || _completed) return;
 
-    // Mark the splash as completed without rebuilding it immediately before
-    // removing the route. This avoids unnecessary widget-tree churn during
-    // route replacement.
     _completed = true;
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
-        // Build the destination with the new route's BuildContext rather than
-        // the splash route's context.
-        pageBuilder: (routeContext, _, __) => widget.onComplete(routeContext),
+        pageBuilder: (routeContext, _, __) {
+          if (widget.destination != null) {
+            return widget.destination!(routeContext, _savedProfile);
+          }
+          if (widget.onComplete != null) {
+            return widget.onComplete!(routeContext);
+          }
+          return const SizedBox.shrink();
+        },
         transitionDuration: MediaQuery.disableAnimationsOf(context)
             ? Duration.zero
             : const Duration(milliseconds: 450),
@@ -275,17 +301,6 @@ class SplashLogoPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-class ProfileData {
-  const ProfileData({
-    required this.name,
-    required this.email,
-    required this.bio,
-  });
-
-  final String name;
-  final String email;
-  final String bio;
-}
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({required this.destination, super.key});
@@ -309,12 +324,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  void _complete() {
+  Future<void> _complete() async {
     final profile = ProfileData(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
       bio: _bioController.text.trim(),
     );
+
+    try {
+      await DatabaseService.instance.saveProfile(profile);
+    } catch (_) {
+      // Graceful fallback
+    }
+
+    if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder<void>(
@@ -521,18 +544,21 @@ class ExpenseDashboard extends StatefulWidget {
   const ExpenseDashboard({
     required this.profile,
     required this.onThemeChanged,
+    this.controller,
     super.key,
   });
 
   final ProfileData profile;
   final ValueChanged<bool> onThemeChanged;
+  final ExpenseController? controller;
 
   @override
   State<ExpenseDashboard> createState() => _ExpenseDashboardState();
 }
 
 class _ExpenseDashboardState extends State<ExpenseDashboard> {
-  final _controller = ExpenseController();
+  late final ExpenseController _controller;
+  late final bool _internalController;
   final _financialController = FinancialController();
   final _xlsxExportService = XlsxExportService();
   final _fileDownloadService = FileDownloadService();
@@ -553,15 +579,38 @@ class _ExpenseDashboardState extends State<ExpenseDashboard> {
   void initState() {
     super.initState();
     _profile = widget.profile;
+    if (widget.controller != null) {
+      _controller = widget.controller!;
+      _internalController = false;
+    } else {
+      _controller = ExpenseController();
+      _internalController = true;
+    }
     _controller.addListener(_refresh);
-    unawaited(_loadFinancialRecords());
+    unawaited(_loadData());
+  }
+
+  Future<void> _loadData() async {
+    await Future.wait([
+      _loadExpenses(),
+      _loadFinancialRecords(),
+    ]);
+  }
+
+  Future<void> _loadExpenses() async {
+    try {
+      await _controller.load();
+    } catch (_) {
+      // In-memory fallback
+    }
   }
 
   @override
   void dispose() {
-    _controller
-      ..removeListener(_refresh)
-      ..dispose();
+    _controller.removeListener(_refresh);
+    if (_internalController) {
+      _controller.dispose();
+    }
     _financialController.dispose();
     _financialAddRequests.dispose();
     super.dispose();
@@ -2198,6 +2247,7 @@ class _ExpenseDashboardState extends State<ExpenseDashboard> {
     if (mounted && updatedProfile != null) {
       setState(() => _profile = updatedProfile);
       widget.onThemeChanged(darkMode);
+      unawaited(DatabaseService.instance.saveProfile(updatedProfile).catchError((_) {}));
     }
   }
 

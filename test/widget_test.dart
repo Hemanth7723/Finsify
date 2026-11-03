@@ -1,12 +1,27 @@
+import 'package:drift/drift.dart' hide isNull, isNotNull;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:finsify/main.dart';
-import 'package:finsify/theme/finsify_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:finsify/database/app_database.dart';
+import 'package:finsify/main.dart';
+import 'package:finsify/models/expense.dart';
+import 'package:finsify/services/database_service.dart';
+import 'package:finsify/theme/finsify_theme.dart';
+
 void main() {
-  testWidgets('shows loading then profile setup', (tester) async {
+  setUpAll(() {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  });
+
+  setUp(() {
+    DatabaseService.instance = DatabaseService(
+      database: AppDatabase(NativeDatabase.memory()),
+    );
+  });
+
+  testWidgets('shows loading then profile setup on first run', (tester) async {
     await tester.pumpWidget(const FinsifyApp());
     expect(find.text('COSMIC BUDGET'), findsOneWidget);
     expect(find.text('Loading Expense Tracker...'), findsOneWidget);
@@ -15,6 +30,41 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Welcome to Cosmic Budget'), findsOneWidget);
     expect(find.text('Get Started'), findsOneWidget);
+  });
+
+  testWidgets('restores existing profile directly into ExpenseDashboard on app launch', (
+    tester,
+  ) async {
+    final dbService = DatabaseService(
+      database: AppDatabase(NativeDatabase.memory()),
+    );
+    DatabaseService.instance = dbService;
+    await dbService.saveProfile(
+      const ProfileData(
+        name: 'Hemanth',
+        email: 'hemanth@example.com',
+        bio: 'Target 1000',
+      ),
+    );
+    await dbService.insertExpense(
+      Expense(
+        id: 999,
+        title: 'Coffee',
+        amount: 4.5,
+        category: 'Food',
+        timestamp: DateTime.now(),
+      ),
+    );
+
+    await tester.pumpWidget(const FinsifyApp());
+    expect(find.text('COSMIC BUDGET'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 2500));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // Bypasses ProfileScreen and displays ExpenseDashboard
+    expect(find.text('Welcome to Cosmic Budget'), findsNothing);
+    expect(find.text('TOTAL EXPENSES'), findsOneWidget);
   });
 
   testWidgets('dashboard navigation opens finance screens', (tester) async {

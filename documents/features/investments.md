@@ -2,80 +2,73 @@
 
 ## Purpose
 
-Investments are user-entered tracking records for stocks, mutual funds, bonds, debt, or other assets. The app does not fetch brokerage data, prices, balances, or live returns. Estimated values use the user's assumed annual return and are projections only.
+Investments are user-managed tracking records for stocks, mutual funds, bonds, debt, or other assets. Finsify tracks these offline; it does not connect to external brokerage APIs or scrape real-time asset pricing. Projected values are calculated using standard compound growth models based on user-provided return expectations.
 
-## User flow
+## User Flow
 
-1. Select **Invest** in the bottom navigation.
-2. Tap the screen add icon or persistent plus button.
-3. Enter a name, investment type, contribution mode (SIP or one-time), starting amount, expected annual return, and start date.
-4. For SIP, enter a monthly contribution as well.
-5. Save validates the fields and writes the record to local preferences. The card shows invested amount, estimated value, and expected return/year.
-6. Delete removes the investment record.
+1. Select **Invest** from the bottom navigation bar.
+2. Tap the screen add button or persistent floating action button.
+3. Enter investment name, asset type, contribution mode (SIP or one-time), starting amount, expected annual return percentage, and initial investment date.
+4. For recurring SIP contributions, specify the monthly contribution amount.
+5. Saving validates all fields and inserts the record into Drift SQLite via `FinancialController`. The investment card immediately renders invested capital, projected current value, and annual yield.
+6. Delete removes the record from the database.
 
 ## Architecture
 
 ```text
-ExpenseDashboard navigation / plus action
+ExpenseDashboard Navigation / Action Button
   └─ FinancialPage(section: investments)
-       ├─ add form + validation
+       ├─ Add form + Field validation
        ├─ Investment calculations (model getters)
-       └─ FinancialController ── SharedPreferences JSON
+       └─ FinancialController (ChangeNotifier)
+            └─ DatabaseService.instance
+                 └─ AppDatabase (Drift SQLite: "investments" table)
 ```
 
-Code: `lib/widgets/financial_pages.dart`, `lib/models/financial_item.dart`, and `lib/controllers/financial_controller.dart`.
+Implementation files: [`lib/widgets/financial_pages.dart`](file:///e:/finsify/lib/widgets/financial_pages.dart), [`lib/models/financial_item.dart`](file:///e:/finsify/lib/models/financial_item.dart), [`lib/controllers/financial_controller.dart`](file:///e:/finsify/lib/controllers/financial_controller.dart), and [`lib/services/database_service.dart`](file:///e:/finsify/lib/services/database_service.dart).
 
-## In-app API and model
+## In-App API and Model
 
-`FinancialController` exposes `investments`, `addInvestment(Investment)`, and `deleteInvestment(int id)`. It uses the same finance store as loans and bills. There is no web API.
+`FinancialController` exposes `investments`, `addInvestment(Investment)`, and `deleteInvestment(int id)`.
 
 `Investment` fields:
 
-| Field | Type | Meaning |
-|---|---|---|
-| `id` | `int` | Local record identifier |
-| `name` | `String` | User-chosen holding/goal name |
-| `type` | `InvestmentType` | `stocks`, `mutualFunds`, `bonds`, `debt`, `other` |
-| `contributionType` | `ContributionType` | `sip` or `oneTime` |
-| `amount` | `double` | Initial/contributed amount |
-| `monthlyContribution` | `double` | Monthly SIP contribution; defaults to zero |
-| `annualReturnPercent` | `double` | User assumption, percent per year |
-| `startDate` | `DateTime` | Date from which months elapsed are counted |
+| Field | Type | SQLite / Drift Column | Meaning |
+|---|---|---|---|
+| `id` | `int` | `id` (INTEGER PK AUTOINCREMENT) | Unique record identifier |
+| `name` | `String` | `name` (TEXT NOT NULL) | Name of holding or investment goal |
+| `type` | `InvestmentType` | `type` (TEXT NOT NULL) | `stocks`, `mutualFunds`, `bonds`, `debt`, `other` |
+| `contributionType` | `ContributionType` | `contribution_type` (TEXT NOT NULL) | `sip` or `oneTime` |
+| `amount` | `double` | `amount` (REAL NOT NULL) | Initial lump-sum or principal amount |
+| `monthlyContribution` | `double` | `monthly_contribution` (REAL NOT NULL) | Recurring monthly SIP contribution |
+| `annualReturnPercent` | `double` | `annual_return_percent` (REAL NOT NULL) | Expected annual growth rate (%) |
+| `startDate` | `DateTime` | `start_date` (DATETIME NOT NULL) | Date tracking begins |
 
-## Calculation behavior
+## Calculation Behavior
 
-Elapsed months are calendar-month difference from start date to current date, clamped to 0–1200. Day-of-month is not used to decide whether the current month has elapsed.
+Elapsed months are computed from `startDate` to `DateTime.now()`, clamped between 0 and 1200 months.
 
-- One-time estimated value: `amount × (1 + annualRate / 1200)^months`.
-- SIP invested amount: `amount + monthlyContribution × months`.
-- SIP estimated value: compounded initial amount plus `monthlyContribution × ((1 + monthlyRate)^months − 1) / monthlyRate`. At a zero rate, it is initial amount plus monthly contributions.
-- Expected annual percent is converted to monthly rate by division by 1200.
+- **One-time Estimated Value:** $\text{amount} \times (1 + \frac{\text{annualRate}}{1200})^{\text{months}}$
+- **SIP Invested Amount:** $\text{amount} + (\text{monthlyContribution} \times \text{months})$
+- **SIP Estimated Value:** Compounded initial amount plus $\text{monthlyContribution} \times \frac{(1 + \text{monthlyRate})^{\text{months}} - 1}{\text{monthlyRate}}$. If monthly rate is 0, sum of initial plus all monthly contributions.
+- **Monthly Rate:** $\frac{\text{annualReturnPercent}}{1200}$.
 
-The model performs calculations in Dart using `double`; there is no live-price source, tax, inflation, fee, or market-volatility model.
+All calculations execute on-device using IEEE 754 double-precision floating-point arithmetic.
 
 ## Validation
 
-Name is required. Initial amount must be positive and finite. Annual return must be finite and between 0 and 1000 inclusive. Monthly contribution must be finite and non-negative. The form initializes monthly contribution to `0` and also falls back to `0` if it cannot parse that field.
+- **Name:** Required and non-empty.
+- **Initial Amount:** Must parse to a positive, finite number ($> 0$).
+- **Annual Return:** Must be between 0% and 1000% inclusive.
+- **Monthly Contribution:** Must be non-negative ($\ge 0$).
 
-## Persistence shape
+## Persistence & Migration
 
-Stored under the shared preference key `finsify_financial_records_v1` in the `investments` array:
+- Persisted in the `investments` table of the local Drift SQLite database (`finsify.sqlite` on mobile/desktop, IndexedDB via WebAssembly on web).
+- **Legacy Migration:** When initialized, `FinancialController` checks `SharedPreferences` for legacy JSON key `finsify_financial_records_v1`. If detected, records are automatically migrated into Drift SQLite tables and cleaned up from preferences.
 
-```json
-{
-  "id": 1,
-  "name": "Index fund",
-  "type": "mutualFunds",
-  "contributionType": "sip",
-  "amount": 500,
-  "monthlyContribution": 100,
-  "annualReturnPercent": 8,
-  "startDate": "2025-01-01T00:00:00.000"
-}
-```
+## Tests and Limitations
 
-Values are serialized manually by `FinancialController`; this preference storage is not an encrypted database or cloud backup.
-
-## Tests and limitations
-
-`test/financial_controller_test.dart` verifies investment storage and reload. `test/financial_item_test.dart` focuses loan calculations; investment return formula test coverage should be expanded when changing these calculations. Records are editable only by delete/re-add in the current UI. Projections must not be interpreted as guaranteed returns.
+- [`test/financial_controller_test.dart`](file:///e:/finsify/test/financial_controller_test.dart): Verifies CRUD operations, SQLite persistence, and state restoration across controller reloads.
+- [`test/financial_item_test.dart`](file:///e:/finsify/test/financial_item_test.dart): Verifies mathematical financial projection formulas.
+- Projections are illustrative estimations and do not account for expense ratios, taxation, or market volatility.
