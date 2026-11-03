@@ -1,12 +1,27 @@
-import 'package:finsify/controllers/financial_controller.dart';
-import 'package:finsify/models/financial_item.dart';
+import 'package:drift/drift.dart' hide isNull, isNotNull;
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:finsify/controllers/financial_controller.dart';
+import 'package:finsify/database/app_database.dart';
+import 'package:finsify/models/financial_item.dart';
+import 'package:finsify/services/database_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('persists and reloads investment records locally', () async {
+  setUpAll(() {
+    driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+  });
+
+  setUp(() {
+    DatabaseService.instance = DatabaseService(
+      database: AppDatabase(NativeDatabase.memory()),
+    );
+  });
+
+  test('persists and reloads investment records locally with Drift', () async {
     SharedPreferences.setMockInitialValues({});
     final controller = FinancialController();
     await controller.load();
@@ -54,5 +69,23 @@ void main() {
     expect(restored.loans.single.totalPayable, greaterThan(10000));
     expect(restored.bills.single.recurringMonthly, isTrue);
     expect(restored.bills.single.isPaid, isFalse);
+
+    // Test updates and deletions
+    await restored.updateBill(
+      restored.bills.single.copyWith(isPaid: true),
+    );
+    final updatedCheck = FinancialController();
+    await updatedCheck.load();
+    expect(updatedCheck.bills.single.isPaid, isTrue);
+
+    await updatedCheck.deleteInvestment(1);
+    await updatedCheck.deleteLoan(2);
+    await updatedCheck.deleteBill(3);
+
+    final emptyCheck = FinancialController();
+    await emptyCheck.load();
+    expect(emptyCheck.investments, isEmpty);
+    expect(emptyCheck.loans, isEmpty);
+    expect(emptyCheck.bills, isEmpty);
   });
 }

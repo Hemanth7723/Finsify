@@ -1,49 +1,62 @@
-# Bills and card balances
+# Bills and Card Balances
 
 ## Purpose
 
-The Bills screen tracks user-entered amounts due for credit cards, debit cards, or other bills. It displays due status and supports optional monthly recurrence. Bills are not fetched from a bank or card issuer.
+The Bills screen tracks recurring and one-time payables for credit cards, debit cards, utilities, and general bills. It provides due date tracking, payment status management, monthly recurrence roll-over, and local notification reminders.
 
-## User flow
+## User Flow
 
-1. Select **Bills** in navigation.
-2. Add a bill using the screen add button or persistent plus action.
-3. Enter a bill/card name, type, amount, due date, and whether it repeats monthly.
-4. On save, the app stores the bill and then attempts to schedule reminders.
-5. The bill card shows amount, type, due date/status, recurrence, and reminder status.
-6. Mark a one-time bill paid to persist `isPaid = true` and cancel its reminders.
-7. Mark a recurring bill paid to advance due date by one calendar month, clamp dates such as the 31st to the next month's last day, keep it unpaid for the next cycle, and reschedule reminders.
-8. Delete removes the bill and its reminders.
+1. Select **Bills** from the bottom navigation.
+2. Tap the screen add button or floating action button.
+3. Enter bill/card name, instrument type, amount, due date, and whether the bill recurs monthly.
+4. On save, the bill is inserted into Drift SQLite and reminders are scheduled via `BillReminderService`.
+5. The card renders amount, type, due date status (`Paid`, `Overdue`, `Due today`, or `Due in N days`), recurrence, and reminder state.
+6. **Marking a one-time bill paid:** Updates `isPaid = true` in SQLite and cancels active notification reminders.
+7. **Marking a recurring bill paid:** Advances the due date by one calendar month (clamping month-end dates such as the 31st to the target month's last day), resets `isPaid = false`, updates the record in SQLite, and reschedules notification reminders.
+8. **Delete:** Removes the bill from SQLite and cancels scheduled reminders.
 
 ## Architecture
 
 ```text
 FinancialPage(section: bills)
-  ├─ form / paid / delete actions
-  ├─ FinancialController ───── bill JSON in SharedPreferences
-  └─ BillReminderService ────── local notifications
+  ├─ Bill Card / Form Dialog
+  ├─ FinancialController (ChangeNotifier)
+  │    └─ DatabaseService.instance
+  │         └─ AppDatabase (Drift SQLite: "bills" table)
+  └─ BillReminderService (Local notifications)
 ```
 
-Main code: `lib/widgets/financial_pages.dart`, `lib/models/financial_item.dart`, `lib/controllers/financial_controller.dart`, `lib/services/financial_services.dart`.
+Implementation files: [`lib/widgets/financial_pages.dart`](file:///e:/finsify/lib/widgets/financial_pages.dart), [`lib/models/financial_item.dart`](file:///e:/finsify/lib/models/financial_item.dart), [`lib/controllers/financial_controller.dart`](file:///e:/finsify/lib/controllers/financial_controller.dart), and [`lib/services/financial_services.dart`](file:///e:/finsify/lib/services/financial_services.dart).
 
-## In-app API and model
+## In-App API and Model
 
-`FinancialController` provides `bills`, `addBill(Bill)`, `updateBill(Bill)`, and `deleteBill(int id)`. `BillReminderService` provides `schedule(Bill)` and `cancel(int billId)`. These are local Dart service APIs, not HTTP endpoints.
+`FinancialController` methods:
+- `addBill(Bill)`: Persists bill into SQLite and updates state.
+- `updateBill(Bill)`: Updates SQLite record (e.g., status/due date) and updates state.
+- `deleteBill(int id)`: Deletes SQLite record and updates state.
+- `load()`: Loads all bills from Drift SQLite.
 
-`Bill` fields: `id`, `name`, `type` (`creditCard`, `debitCard`, `other`), `amount`, `dueDate`, `recurringMonthly` (default false), and `isPaid` (default false). `copyWith` supports due date and paid status updates.
+`Bill` fields:
 
-Displayed due status is `Paid`, `Overdue`, `Due today`, or `Due in N days`. The implementation calculates days from normalized due date against `DateTime.now()` and renders the status when the widget rebuilds.
+| Field | Type | SQLite / Drift Column | Meaning |
+|---|---|---|---|
+| `id` | `int` | `id` (INTEGER PK AUTOINCREMENT) | Unique bill identifier |
+| `name` | `String` | `name` (TEXT NOT NULL) | Bill or credit card name |
+| `type` | `BillType` | `type` (TEXT NOT NULL) | `creditCard`, `debitCard`, `other` |
+| `amount` | `double` | `amount` (REAL NOT NULL) | Amount due |
+| `dueDate` | `DateTime` | `due_date` (DATETIME NOT NULL) | Due date and time |
+| `recurringMonthly` | `bool` | `recurring_monthly` (BOOLEAN NOT NULL DEFAULT FALSE) | Whether bill repeats monthly |
+| `isPaid` | `bool` | `is_paid` (BOOLEAN NOT NULL DEFAULT FALSE) | Settlement status |
 
-## Validation and persistence
+## Validation and Persistence
 
-Name is required; amount must parse as finite and positive. Default due date is seven days from the form's opening. Bill records are stored in the shared finance JSON at key `finsify_financial_records_v1`; the stored bill object includes type enum name, amount, ISO-8601 due date, recurrence, and paid status.
+- Name is required and non-empty.
+- Amount must parse to a finite number greater than zero.
+- Due date defaults to 7 days from creation.
+- Stored in the `bills` table of the Drift SQLite database (`finsify.sqlite`).
+- Automatically migrates existing JSON records from `SharedPreferences` upon app initialization.
 
-This storage is local `SharedPreferences`, not secure encrypted storage or a database. Records persist across process restarts on the device but are not synchronized.
+## Tests and Limitations
 
-## Failure behavior
-
-Bill save failure is reported and prevents reminder scheduling. If saving succeeds but reminder setup fails, the bill remains stored and the UI reports that reminder setup failed. Delete/mark-paid persistence and reminder operations may also show a snackbar error.
-
-## Tests and limitations
-
-`test/financial_controller_test.dart` verifies bill persistence and recurrence flag. Notification integration is device/platform behavior and has no automated platform-channel test here. Bills are not imported automatically. Editing a bill is not exposed; delete and recreate to correct it.
+- [`test/financial_controller_test.dart`](file:///e:/finsify/test/financial_controller_test.dart): Tests bill SQLite persistence, recurrence handling, and state loading.
+- Notification reminders rely on platform channels and device permissions (`flutter_local_notifications`).

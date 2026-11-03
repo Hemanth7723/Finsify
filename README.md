@@ -57,7 +57,7 @@
 
 ### 🔒 Privacy & Security
 - **Local-First** — No Finsify backend or cloud sync
-- **Local Preferences** — Investment, loan, and bill records are stored using `SharedPreferences`; expenses and profile details are currently held in memory and are not retained after the app process ends
+- **On-Device SQLite Persistence (Drift)** — Expenses, user profile, investments, loans, bills, and app settings are persistently stored in a local SQLite database (`finsify.sqlite` / `finsify.db`) using Drift. Data survives app closing, restart, and device reboot.
 - **No Tracking** — No analytics or crash reporting
 - **SMS Privacy** — Inbox access is requested only when you choose import; results are reviewed on device and message text is not stored
 - **Speech Privacy** — Expense parsing is local and does not use AI; transcription is provided by the device speech service, whose network behavior depends on platform settings
@@ -109,7 +109,7 @@
 └─────────────────────────────────────────────┘
 ```
 
-**Data flow:** `ExpenseController` manages in-memory expense CRUD, filtering, and sorting. `FinancialController` loads and saves investments, loans, and bills in `SharedPreferences`. Voice parsing is rule-based and local; SMS and reminders use device/platform services. No AI or network service is called by the Flutter app.
+**Data flow:** `ExpenseController` and `FinancialController` interact directly with `DatabaseService` backed by `AppDatabase` (Drift SQLite). All transactions, investments, loans, bills, and profile data are committed to the local SQLite database. On app launch, saved profile details and expenses are automatically restored, bypassing onboarding if a profile already exists. Voice parsing is rule-based and local; SMS and reminders use platform services.
 
 **Kotlin Source Reference (complete):**
 ```
@@ -192,7 +192,7 @@ flutter run -d <device-id>   # android, ios, chrome, windows, macos, linux
 
 **Implemented:**
 - ✅ Splash → Profile onboarding → Dashboard
-- ✅ Add/Edit/Delete expenses (in-memory)
+- ✅ Add/Edit/Delete expenses with persistent Drift SQLite storage
 - ✅ Filter by category, sort by 4 orders
 - ✅ Analytics tabs (Daily/Weekly/Monthly/Yearly/Categories)
 - ✅ Category period navigator with charts
@@ -207,7 +207,7 @@ flutter run -d <device-id>   # android, ios, chrome, windows, macos, linux
 - ✅ Screen and component transitions that respect reduced-motion preferences
 - ✅ Unit + widget tests (`flutter test`)
 
-**Current data lifecycle:** Expenses and profile data are session-only. Finance records persist locally in preferences. No cloud backup or secure-storage encryption is currently implemented.
+**Current data lifecycle:** 100% of user data (profile, expenses, investments, loans, bills, settings) is persisted in the local Drift SQLite database. On startup, previously saved profiles and records are restored automatically.
 
 ### Kotlin Source App (Reference Implementation)
 
