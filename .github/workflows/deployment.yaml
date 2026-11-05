@@ -1,4 +1,4 @@
-name: Release Finsify APK and Deploy Web
+name: Release Finsify APK, unsigned iOS IPA, and Deploy Web
 
 on:
   push:
@@ -40,6 +40,22 @@ jobs:
           cp build/app/outputs/flutter-apk/app-release.apk \
             "release_artifacts/Finsify_${GITHUB_REF_NAME}.apk"
 
+      # Unsigned iOS IPA (build the app bundle without signing, then package as IPA)
+      - name: Build unsigned iOS app bundle
+        run: flutter build ios --release --no-codesign
+
+      - name: Package unsigned iOS IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -d "build/ios/iphoneos/Runner.app" ]; then
+            echo "Unsigned iOS app bundle not found at build/ios/iphoneos/Runner.app"
+            exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent \
+            "build/ios/iphoneos/Runner.app" \
+            "release_artifacts/Finsify_${GITHUB_REF_NAME}_unsigned.ipa"
+
       # Flutter Web
       - name: Build Flutter Web
         run: |
@@ -60,10 +76,12 @@ jobs:
           path: build/web
 
       # Android GitHub Release
-      - name: Create GitHub Release and upload APK
+      - name: Create GitHub Release and upload APK + unsigned iOS IPA
         uses: softprops/action-gh-release@v2
         with:
-          files: release_artifacts/*.apk
+          files: |
+            release_artifacts/*.apk
+            release_artifacts/*.ipa
           draft: false
           prerelease: false
 
