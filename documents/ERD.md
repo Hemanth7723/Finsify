@@ -37,6 +37,15 @@ erDiagram
         TEXT note
     }
 
+    NOTIF_IMPORT_LOGS {
+        TEXT fingerprint PK
+        DATETIME imported_at
+        REAL amount
+        TEXT transaction_reference
+        TEXT account_suffix
+        DATETIME timestamp
+    }
+
     APP_SETTINGS {
         TEXT key PK
         TEXT value
@@ -95,7 +104,7 @@ Stores the local user identity, interface preferences, and monthly budget target
 | `updated_at` | DATETIME | NOT NULL | `DateTime.now()` | Last modification timestamp |
 
 ### 3.2 `expenses`
-Stores ledger transactions entered manually, imported via SMS, or captured by voice.
+Stores ledger transactions entered manually, imported via SMS or Gmail notifications, or captured by voice.
 
 | Column | Drift / SQLite Type | Constraints | Default | Meaning |
 |---|---|---|---|---|
@@ -114,7 +123,19 @@ Generic key-value store for system preferences, onboarding completion, and flag 
 | `key` | TEXT | PRIMARY KEY | Unique setting identifier |
 | `value` | TEXT | NOT NULL | Setting value (string, boolean, or JSON) |
 
-### 3.4 `investments`
+### 3.4 `notif_import_logs`
+Stores source fingerprints and optional UPI references used to prevent duplicate SMS/Gmail imports. The expense row and its import identity are committed in the same transaction.
+
+| Column | Drift / SQLite Type | Constraints | Meaning |
+|---|---|---|---|
+| `fingerprint` | TEXT | PRIMARY KEY | Source-specific notification or SMS fingerprint |
+| `imported_at` | DATETIME | NOT NULL | Time the import was saved |
+| `amount` | REAL | NULLABLE | Amount associated with the transaction reference |
+| `transaction_reference` | TEXT | NULLABLE | Parsed UPI reference; paired with amount for cross-source matching |
+| `account_suffix` | TEXT | NULLABLE | Legacy optional account suffix; no longer used for cross-source matching |
+| `timestamp` | DATETIME | NULLABLE | Legacy event timestamp; no longer used for fuzzy matching |
+
+### 3.5 `investments`
 Tracks assets, stocks, mutual funds, bonds, and projected returns.
 
 | Column | Drift / SQLite Type | Constraints | Default | Meaning |
@@ -128,7 +149,7 @@ Tracks assets, stocks, mutual funds, bonds, and projected returns.
 | `annual_return_percent` | REAL | NOT NULL | - | Expected annual return rate (%) |
 | `start_date` | DATETIME | NOT NULL | - | Investment commencement date |
 
-### 3.5 `loans`
+### 3.6 `loans`
 Tracks mortgages, auto loans, personal debt, and EMI parameters.
 
 | Column | Drift / SQLite Type | Constraints | Default | Meaning |
@@ -142,7 +163,7 @@ Tracks mortgages, auto loans, personal debt, and EMI parameters.
 | `fees` | REAL | NOT NULL | `0.0` | Upfront administrative/processing fees |
 | `start_date` | DATETIME | NOT NULL | - | First repayment date |
 
-### 3.6 `bills`
+### 3.7 `bills`
 Tracks upcoming payables, credit card dues, and recurring billing.
 
 | Column | Drift / SQLite Type | Constraints | Default | Meaning |
@@ -159,6 +180,6 @@ Tracks upcoming payables, credit card dues, and recurring billing.
 
 ## 4. Integrity and Migrations
 
-- **Schema Versioning:** Managed through Drift `schemaVersion` (currently version 1).
+- **Schema Versioning:** Managed through Drift `schemaVersion` (currently version 4).
 - **Migration Strategy:** The Drift database class implements typed migration routines for future schema modifications.
 - **Legacy Migration:** Previous versions storing data in `SharedPreferences` are automatically migrated to SQLite on first initialization without data loss.

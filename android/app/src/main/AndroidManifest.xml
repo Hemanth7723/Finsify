@@ -48,6 +48,19 @@
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
+        <!-- Gmail notification listener (notification_listener_service package).
+             Reads only notifications from com.google.android.gm to detect
+             bank/UPI transaction confirmations. The user must explicitly
+             enable notification access in Android Settings. -->
+        <service
+            android:label="notifications"
+            android:name="notification.listener.service.NotificationListener"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

@@ -2394,6 +2394,457 @@ class BillsCompanion extends UpdateCompanion<DbBill> {
   }
 }
 
+class $NotifImportLogsTable extends NotifImportLogs
+    with TableInfo<$NotifImportLogsTable, DbNotifImportLog> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NotifImportLogsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _fingerprintMeta = const VerificationMeta(
+    'fingerprint',
+  );
+  @override
+  late final GeneratedColumn<String> fingerprint = GeneratedColumn<String>(
+    'fingerprint',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _importedAtMeta = const VerificationMeta(
+    'importedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> importedAt = GeneratedColumn<DateTime>(
+    'imported_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _accountSuffixMeta = const VerificationMeta(
+    'accountSuffix',
+  );
+  @override
+  late final GeneratedColumn<String> accountSuffix = GeneratedColumn<String>(
+    'account_suffix',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _timestampMeta = const VerificationMeta(
+    'timestamp',
+  );
+  @override
+  late final GeneratedColumn<DateTime> timestamp = GeneratedColumn<DateTime>(
+    'timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _transactionReferenceMeta =
+      const VerificationMeta('transactionReference');
+  @override
+  late final GeneratedColumn<String> transactionReference =
+      GeneratedColumn<String>(
+        'transaction_reference',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    fingerprint,
+    importedAt,
+    accountSuffix,
+    amount,
+    timestamp,
+    transactionReference,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'notif_import_logs';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DbNotifImportLog> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('fingerprint')) {
+      context.handle(
+        _fingerprintMeta,
+        fingerprint.isAcceptableOrUnknown(
+          data['fingerprint']!,
+          _fingerprintMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_fingerprintMeta);
+    }
+    if (data.containsKey('imported_at')) {
+      context.handle(
+        _importedAtMeta,
+        importedAt.isAcceptableOrUnknown(data['imported_at']!, _importedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_importedAtMeta);
+    }
+    if (data.containsKey('account_suffix')) {
+      context.handle(
+        _accountSuffixMeta,
+        accountSuffix.isAcceptableOrUnknown(
+          data['account_suffix']!,
+          _accountSuffixMeta,
+        ),
+      );
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    }
+    if (data.containsKey('timestamp')) {
+      context.handle(
+        _timestampMeta,
+        timestamp.isAcceptableOrUnknown(data['timestamp']!, _timestampMeta),
+      );
+    }
+    if (data.containsKey('transaction_reference')) {
+      context.handle(
+        _transactionReferenceMeta,
+        transactionReference.isAcceptableOrUnknown(
+          data['transaction_reference']!,
+          _transactionReferenceMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {fingerprint};
+  @override
+  DbNotifImportLog map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DbNotifImportLog(
+      fingerprint: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}fingerprint'],
+      )!,
+      importedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}imported_at'],
+      )!,
+      accountSuffix: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_suffix'],
+      ),
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      ),
+      timestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}timestamp'],
+      ),
+      transactionReference: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}transaction_reference'],
+      ),
+    );
+  }
+
+  @override
+  $NotifImportLogsTable createAlias(String alias) {
+    return $NotifImportLogsTable(attachedDatabase, alias);
+  }
+}
+
+class DbNotifImportLog extends DataClass
+    implements Insertable<DbNotifImportLog> {
+  /// Stable hash derived from amount, merchant and rounded timestamp.
+  final String fingerprint;
+  final DateTime importedAt;
+  final String? accountSuffix;
+  final double? amount;
+  final DateTime? timestamp;
+  final String? transactionReference;
+  const DbNotifImportLog({
+    required this.fingerprint,
+    required this.importedAt,
+    this.accountSuffix,
+    this.amount,
+    this.timestamp,
+    this.transactionReference,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['fingerprint'] = Variable<String>(fingerprint);
+    map['imported_at'] = Variable<DateTime>(importedAt);
+    if (!nullToAbsent || accountSuffix != null) {
+      map['account_suffix'] = Variable<String>(accountSuffix);
+    }
+    if (!nullToAbsent || amount != null) {
+      map['amount'] = Variable<double>(amount);
+    }
+    if (!nullToAbsent || timestamp != null) {
+      map['timestamp'] = Variable<DateTime>(timestamp);
+    }
+    if (!nullToAbsent || transactionReference != null) {
+      map['transaction_reference'] = Variable<String>(transactionReference);
+    }
+    return map;
+  }
+
+  NotifImportLogsCompanion toCompanion(bool nullToAbsent) {
+    return NotifImportLogsCompanion(
+      fingerprint: Value(fingerprint),
+      importedAt: Value(importedAt),
+      accountSuffix: accountSuffix == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accountSuffix),
+      amount: amount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(amount),
+      timestamp: timestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(timestamp),
+      transactionReference: transactionReference == null && nullToAbsent
+          ? const Value.absent()
+          : Value(transactionReference),
+    );
+  }
+
+  factory DbNotifImportLog.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DbNotifImportLog(
+      fingerprint: serializer.fromJson<String>(json['fingerprint']),
+      importedAt: serializer.fromJson<DateTime>(json['importedAt']),
+      accountSuffix: serializer.fromJson<String?>(json['accountSuffix']),
+      amount: serializer.fromJson<double?>(json['amount']),
+      timestamp: serializer.fromJson<DateTime?>(json['timestamp']),
+      transactionReference: serializer.fromJson<String?>(
+        json['transactionReference'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'fingerprint': serializer.toJson<String>(fingerprint),
+      'importedAt': serializer.toJson<DateTime>(importedAt),
+      'accountSuffix': serializer.toJson<String?>(accountSuffix),
+      'amount': serializer.toJson<double?>(amount),
+      'timestamp': serializer.toJson<DateTime?>(timestamp),
+      'transactionReference': serializer.toJson<String?>(transactionReference),
+    };
+  }
+
+  DbNotifImportLog copyWith({
+    String? fingerprint,
+    DateTime? importedAt,
+    Value<String?> accountSuffix = const Value.absent(),
+    Value<double?> amount = const Value.absent(),
+    Value<DateTime?> timestamp = const Value.absent(),
+    Value<String?> transactionReference = const Value.absent(),
+  }) => DbNotifImportLog(
+    fingerprint: fingerprint ?? this.fingerprint,
+    importedAt: importedAt ?? this.importedAt,
+    accountSuffix: accountSuffix.present
+        ? accountSuffix.value
+        : this.accountSuffix,
+    amount: amount.present ? amount.value : this.amount,
+    timestamp: timestamp.present ? timestamp.value : this.timestamp,
+    transactionReference: transactionReference.present
+        ? transactionReference.value
+        : this.transactionReference,
+  );
+  DbNotifImportLog copyWithCompanion(NotifImportLogsCompanion data) {
+    return DbNotifImportLog(
+      fingerprint: data.fingerprint.present
+          ? data.fingerprint.value
+          : this.fingerprint,
+      importedAt: data.importedAt.present
+          ? data.importedAt.value
+          : this.importedAt,
+      accountSuffix: data.accountSuffix.present
+          ? data.accountSuffix.value
+          : this.accountSuffix,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
+      transactionReference: data.transactionReference.present
+          ? data.transactionReference.value
+          : this.transactionReference,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DbNotifImportLog(')
+          ..write('fingerprint: $fingerprint, ')
+          ..write('importedAt: $importedAt, ')
+          ..write('accountSuffix: $accountSuffix, ')
+          ..write('amount: $amount, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('transactionReference: $transactionReference')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    fingerprint,
+    importedAt,
+    accountSuffix,
+    amount,
+    timestamp,
+    transactionReference,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DbNotifImportLog &&
+          other.fingerprint == this.fingerprint &&
+          other.importedAt == this.importedAt &&
+          other.accountSuffix == this.accountSuffix &&
+          other.amount == this.amount &&
+          other.timestamp == this.timestamp &&
+          other.transactionReference == this.transactionReference);
+}
+
+class NotifImportLogsCompanion extends UpdateCompanion<DbNotifImportLog> {
+  final Value<String> fingerprint;
+  final Value<DateTime> importedAt;
+  final Value<String?> accountSuffix;
+  final Value<double?> amount;
+  final Value<DateTime?> timestamp;
+  final Value<String?> transactionReference;
+  final Value<int> rowid;
+  const NotifImportLogsCompanion({
+    this.fingerprint = const Value.absent(),
+    this.importedAt = const Value.absent(),
+    this.accountSuffix = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.timestamp = const Value.absent(),
+    this.transactionReference = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NotifImportLogsCompanion.insert({
+    required String fingerprint,
+    required DateTime importedAt,
+    this.accountSuffix = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.timestamp = const Value.absent(),
+    this.transactionReference = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : fingerprint = Value(fingerprint),
+       importedAt = Value(importedAt);
+  static Insertable<DbNotifImportLog> custom({
+    Expression<String>? fingerprint,
+    Expression<DateTime>? importedAt,
+    Expression<String>? accountSuffix,
+    Expression<double>? amount,
+    Expression<DateTime>? timestamp,
+    Expression<String>? transactionReference,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (fingerprint != null) 'fingerprint': fingerprint,
+      if (importedAt != null) 'imported_at': importedAt,
+      if (accountSuffix != null) 'account_suffix': accountSuffix,
+      if (amount != null) 'amount': amount,
+      if (timestamp != null) 'timestamp': timestamp,
+      if (transactionReference != null)
+        'transaction_reference': transactionReference,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NotifImportLogsCompanion copyWith({
+    Value<String>? fingerprint,
+    Value<DateTime>? importedAt,
+    Value<String?>? accountSuffix,
+    Value<double?>? amount,
+    Value<DateTime?>? timestamp,
+    Value<String?>? transactionReference,
+    Value<int>? rowid,
+  }) {
+    return NotifImportLogsCompanion(
+      fingerprint: fingerprint ?? this.fingerprint,
+      importedAt: importedAt ?? this.importedAt,
+      accountSuffix: accountSuffix ?? this.accountSuffix,
+      amount: amount ?? this.amount,
+      timestamp: timestamp ?? this.timestamp,
+      transactionReference: transactionReference ?? this.transactionReference,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (fingerprint.present) {
+      map['fingerprint'] = Variable<String>(fingerprint.value);
+    }
+    if (importedAt.present) {
+      map['imported_at'] = Variable<DateTime>(importedAt.value);
+    }
+    if (accountSuffix.present) {
+      map['account_suffix'] = Variable<String>(accountSuffix.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (timestamp.present) {
+      map['timestamp'] = Variable<DateTime>(timestamp.value);
+    }
+    if (transactionReference.present) {
+      map['transaction_reference'] = Variable<String>(
+        transactionReference.value,
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotifImportLogsCompanion(')
+          ..write('fingerprint: $fingerprint, ')
+          ..write('importedAt: $importedAt, ')
+          ..write('accountSuffix: $accountSuffix, ')
+          ..write('amount: $amount, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('transactionReference: $transactionReference, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2403,6 +2854,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $InvestmentsTable investments = $InvestmentsTable(this);
   late final $LoansTable loans = $LoansTable(this);
   late final $BillsTable bills = $BillsTable(this);
+  late final $NotifImportLogsTable notifImportLogs = $NotifImportLogsTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2414,6 +2868,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     investments,
     loans,
     bills,
+    notifImportLogs,
   ];
 }
 
@@ -3730,6 +4185,248 @@ typedef $$BillsTableProcessedTableManager =
       DbBill,
       PrefetchHooks Function()
     >;
+typedef $$NotifImportLogsTableCreateCompanionBuilder =
+    NotifImportLogsCompanion Function({
+      required String fingerprint,
+      required DateTime importedAt,
+      Value<String?> accountSuffix,
+      Value<double?> amount,
+      Value<DateTime?> timestamp,
+      Value<String?> transactionReference,
+      Value<int> rowid,
+    });
+typedef $$NotifImportLogsTableUpdateCompanionBuilder =
+    NotifImportLogsCompanion Function({
+      Value<String> fingerprint,
+      Value<DateTime> importedAt,
+      Value<String?> accountSuffix,
+      Value<double?> amount,
+      Value<DateTime?> timestamp,
+      Value<String?> transactionReference,
+      Value<int> rowid,
+    });
+
+class $$NotifImportLogsTableFilterComposer
+    extends Composer<_$AppDatabase, $NotifImportLogsTable> {
+  $$NotifImportLogsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get fingerprint => $composableBuilder(
+    column: $table.fingerprint,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get importedAt => $composableBuilder(
+    column: $table.importedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountSuffix => $composableBuilder(
+    column: $table.accountSuffix,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get transactionReference => $composableBuilder(
+    column: $table.transactionReference,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NotifImportLogsTableOrderingComposer
+    extends Composer<_$AppDatabase, $NotifImportLogsTable> {
+  $$NotifImportLogsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get fingerprint => $composableBuilder(
+    column: $table.fingerprint,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get importedAt => $composableBuilder(
+    column: $table.importedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accountSuffix => $composableBuilder(
+    column: $table.accountSuffix,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get timestamp => $composableBuilder(
+    column: $table.timestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get transactionReference => $composableBuilder(
+    column: $table.transactionReference,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NotifImportLogsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $NotifImportLogsTable> {
+  $$NotifImportLogsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get fingerprint => $composableBuilder(
+    column: $table.fingerprint,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get importedAt => $composableBuilder(
+    column: $table.importedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get accountSuffix => $composableBuilder(
+    column: $table.accountSuffix,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get timestamp =>
+      $composableBuilder(column: $table.timestamp, builder: (column) => column);
+
+  GeneratedColumn<String> get transactionReference => $composableBuilder(
+    column: $table.transactionReference,
+    builder: (column) => column,
+  );
+}
+
+class $$NotifImportLogsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $NotifImportLogsTable,
+          DbNotifImportLog,
+          $$NotifImportLogsTableFilterComposer,
+          $$NotifImportLogsTableOrderingComposer,
+          $$NotifImportLogsTableAnnotationComposer,
+          $$NotifImportLogsTableCreateCompanionBuilder,
+          $$NotifImportLogsTableUpdateCompanionBuilder,
+          (
+            DbNotifImportLog,
+            BaseReferences<
+              _$AppDatabase,
+              $NotifImportLogsTable,
+              DbNotifImportLog
+            >,
+          ),
+          DbNotifImportLog,
+          PrefetchHooks Function()
+        > {
+  $$NotifImportLogsTableTableManager(
+    _$AppDatabase db,
+    $NotifImportLogsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NotifImportLogsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NotifImportLogsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NotifImportLogsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> fingerprint = const Value.absent(),
+                Value<DateTime> importedAt = const Value.absent(),
+                Value<String?> accountSuffix = const Value.absent(),
+                Value<double?> amount = const Value.absent(),
+                Value<DateTime?> timestamp = const Value.absent(),
+                Value<String?> transactionReference = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NotifImportLogsCompanion(
+                fingerprint: fingerprint,
+                importedAt: importedAt,
+                accountSuffix: accountSuffix,
+                amount: amount,
+                timestamp: timestamp,
+                transactionReference: transactionReference,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String fingerprint,
+                required DateTime importedAt,
+                Value<String?> accountSuffix = const Value.absent(),
+                Value<double?> amount = const Value.absent(),
+                Value<DateTime?> timestamp = const Value.absent(),
+                Value<String?> transactionReference = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NotifImportLogsCompanion.insert(
+                fingerprint: fingerprint,
+                importedAt: importedAt,
+                accountSuffix: accountSuffix,
+                amount: amount,
+                timestamp: timestamp,
+                transactionReference: transactionReference,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$NotifImportLogsTable, DbNotifImportLog>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $NotifImportLogsTable,
+                    DbNotifImportLog
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NotifImportLogsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $NotifImportLogsTable,
+      DbNotifImportLog,
+      $$NotifImportLogsTableFilterComposer,
+      $$NotifImportLogsTableOrderingComposer,
+      $$NotifImportLogsTableAnnotationComposer,
+      $$NotifImportLogsTableCreateCompanionBuilder,
+      $$NotifImportLogsTableUpdateCompanionBuilder,
+      (
+        DbNotifImportLog,
+        BaseReferences<_$AppDatabase, $NotifImportLogsTable, DbNotifImportLog>,
+      ),
+      DbNotifImportLog,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3746,4 +4443,6 @@ class $AppDatabaseManager {
       $$LoansTableTableManager(_db, _db.loans);
   $$BillsTableTableManager get bills =>
       $$BillsTableTableManager(_db, _db.bills);
+  $$NotifImportLogsTableTableManager get notifImportLogs =>
+      $$NotifImportLogsTableTableManager(_db, _db.notifImportLogs);
 }

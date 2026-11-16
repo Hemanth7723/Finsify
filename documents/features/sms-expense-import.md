@@ -10,9 +10,9 @@ SMS import scans up to 100 recent inbox messages on Android, identifies likely d
 2. Confirm that the app may inspect up to 100 recent inbox messages.
 3. Android SMS permission is requested. If denied or permanently denied, the flow reports an actionable error.
 4. The app queries inbox messages and locally filters/parses likely transactions.
-5. Candidate records already represented by an expense ID are filtered out.
+5. Candidates already present in the in-memory ledger are filtered out by expense ID.
 6. A review dialog lists candidate transaction summaries and previews. All candidates are initially selected; the user can deselect rows.
-7. Confirming imports the selected candidates into `ExpenseController`. Cancel imports none.
+7. Confirming sends selected candidates through the atomic import path; duplicates are skipped. Cancel imports none.
 
 ## Architecture
 
@@ -23,7 +23,8 @@ ExpenseDashboard._importSmsExpenses
   │    ├─ permission_handler: SMS permission
   │    ├─ flutter_sms_inbox: inbox query (max 100)
   │    └─ local regex parser + candidate builder
-  └─ ExpenseController.addExpense
+  └─ ExpenseController.addImportedExpenseIfNew
+       └─ Drift transaction saves the expense and import identity atomically
 ```
 
 Main implementation: `lib/services/financial_services.dart` (`SmsExpenseImporter`) and `lib/main.dart` (confirmation, selection and import orchestration).
@@ -40,9 +41,10 @@ Main implementation: `lib/services/financial_services.dart` (`SmsExpenseImporter
 
 | Field | Type | Meaning |
 |---|---|---|
-| `id` | `String` | Candidate selection/dedup key based on message ID/date and parsed amount |
+| `id` | `String` | SMS candidate key based on message ID/date and parsed amount |
 | `expense` | `Expense` | Proposed ledger record |
 | `preview` | `String` | Whitespace-normalized, maximum 100-character SMS preview |
+| `transactionReference` | `String?` | Extracted UPI reference from `UPI/P2M/<reference>/...`, when present |
 
 There is no HTTP API or bank integration.
 
@@ -69,8 +71,8 @@ Title is derived by stripping the amount, transaction keywords, account/card ter
 
 ## Errors and duplicate behavior
 
-The dashboard shows a loading state while querying and surfaces errors in a snackbar. If no new candidate exists, it shows a no-new-messages message. Candidates are filtered against current expense IDs; this is not durable deduplication because expenses are in memory and IDs depend on source message/date plus amount hashing.
+The dashboard shows a loading state while querying and surfaces errors in a snackbar. If no new candidate exists, it shows a no-new-messages message. The in-memory ID filter avoids presenting already-loaded SMS candidates, while the database transaction is authoritative: it deduplicates SMS re-imports by fingerprint and matches SMS against Gmail imports by UPI transaction reference and amount. If a reference is missing, cross-source deduplication cannot be guaranteed.
 
 ## Tests and limitations
 
-No automated test currently exercises Android inbox access or parser examples. Permission and inbox behavior require Android device testing. Heuristics can miss bank alerts with unsupported formatting or match non-expense messages with qualifying words; the human review step is required before adding.
+Automated tests cover UPI reference extraction and atomic cross-source deduplication in `test/gmail_transaction_parser_test.dart`, but do not exercise Android inbox access. Permission and inbox behavior require Android device testing. Heuristics can miss bank alerts with unsupported formatting or match non-expense messages with qualifying words; the human review step is required before adding.

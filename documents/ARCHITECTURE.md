@@ -28,6 +28,7 @@ Finsify is built on a clean, layered Flutter architecture prioritizing local-fir
 │  - DatabaseService (Singleton SQLite abstraction)           │
 │  - VoiceRecognitionService (Offline speech-to-text parsing)  │
 │  - SmsExpenseImporter (Regex rule-based SMS extraction)     │
+│  - GmailNotifImportService (Gmail notification parsing)      │
 │  - BillReminderService (Local OS notification scheduling)   │
 │  - XlsxExportService (Spreadsheet generation)               │
 └──────────────────────────────┬──────────────────────────────┘
@@ -37,7 +38,7 @@ Finsify is built on a clean, layered Flutter architecture prioritizing local-fir
 │                 STORAGE LAYER (DRIFT ORM)                   │
 │  - AppDatabase (Type-safe Drift SQLite)                     │
 │  - Tables: Profiles, Expenses, Investments, Loans, Bills,    │
-│            AppSettings                                      │
+│            AppSettings, NotifImportLogs                     │
 │  - Native: finsify.sqlite (via sqlite3_flutter_libs)        │
 │  - Web: sqlite3.wasm + drift_worker.js (via IndexedDB)      │
 │  - Tests: NativeDatabase.memory()                           │
@@ -52,7 +53,7 @@ Finsify is built on a clean, layered Flutter architecture prioritizing local-fir
 |---|---|---|
 | **Presentation** | [`lib/main.dart`](file:///e:/finsify/lib/main.dart), [`lib/widgets/financial_pages.dart`](file:///e:/finsify/lib/widgets/financial_pages.dart), [`lib/screens/profile_screen.dart`](file:///e:/finsify/lib/screens/profile_screen.dart) | Material 3 UI rendering, user interaction, input forms, responsive layout, chart visualization, and lazy list virtualisation via slivers. |
 | **Controllers** | [`lib/controllers/expense_controller.dart`](file:///e:/finsify/lib/controllers/expense_controller.dart), [`lib/controllers/financial_controller.dart`](file:///e:/finsify/lib/controllers/financial_controller.dart) | State management (`ChangeNotifier`), presentation logic, in-memory filtering/sorting cache, CRUD coordination, and legacy data migration. |
-| **Services** | [`lib/services/database_service.dart`](file:///e:/finsify/lib/services/database_service.dart), [`lib/services/voice_recognition_service.dart`](file:///e:/finsify/lib/services/voice_recognition_service.dart), [`lib/services/sms_expense_importer.dart`](file:///e:/finsify/lib/services/sms_expense_importer.dart), [`lib/services/financial_services.dart`](file:///e:/finsify/lib/services/financial_services.dart) | Peripheral hardware interfaces (Microphone, SMS, Notifications), file serialization (Excel XLSX), and persistent database operations. |
+| **Services** | [`lib/services/database_service.dart`](file:///e:/finsify/lib/services/database_service.dart), [`lib/services/voice_recognition_service.dart`](file:///e:/finsify/lib/services/voice_recognition_service.dart), [`lib/services/financial_services.dart`](file:///e:/finsify/lib/services/financial_services.dart), [`lib/services/gmail_notif_import_service.dart`](file:///e:/finsify/lib/services/gmail_notif_import_service.dart) | Peripheral hardware interfaces (Microphone, SMS, Gmail notifications), file serialization (Excel XLSX), and persistent database operations. |
 | **Storage** | [`lib/database/app_database.dart`](file:///e:/finsify/lib/database/app_database.dart) | Drift SQLite relational tables, schema migrations, and cross-platform database connection initialization (Native SQLite & Web WASM). |
 
 ---
@@ -74,6 +75,7 @@ Finsify is built on a clean, layered Flutter architecture prioritizing local-fir
 ### 3.4 Local-First Privacy
 - All financial information (profile, budget, expenses, investments, loans, bills) resides strictly on the local device in SQLite.
 - No network analytics, cloud sync, or remote server endpoints are utilized.
+- Imported SMS/Gmail expenses are saved with their deduplication identity in one database transaction; matching UPI references and amounts prevent cross-source duplicates.
 
 ---
 

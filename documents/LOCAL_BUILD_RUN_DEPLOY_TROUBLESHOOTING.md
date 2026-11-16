@@ -164,12 +164,14 @@ The analytics bar chart was updated for tight height/width constraints. If an ov
 |---|---|---|
 | Voice expense entry | Device speech recognition and microphone permission; speech service availability varies | Grant microphone/speech access, test transcription, denial, and unavailable-recognizer states |
 | SMS expense import | Android only; requests SMS permission only after user chooses import | Test granted, denied, permanently denied, empty inbox, and reviewed candidate import |
+| Gmail notification expense import | Android only; user enables notification access and the feature in Profile settings | Test access granted/revoked, Gmail payload with/without UPI reference, and duplicate SMS/Gmail references |
 | Bill reminders | Android/iOS local notifications; permission requested when scheduling | Test permission, schedule, cancellation on paid/deleted, and reboot behavior on a physical device |
 | XLSX Downloads export | Android only; Android 10/API 29+ `MediaStore.Downloads` | Export a non-empty filtered list and verify file in Downloads; confirm empty export reports a message |
 | Investment/loan/bill records | Android/iOS Flutter preferences plugin; local device storage | Add records, restart app, and verify records reload |
-| Expense ledger/profile/theme selection | Session memory in current implementation | Restarting the process clears expenses/profile/theme choice |
+| Expense ledger and profile | Local Drift SQLite storage | Restart the process and verify saved expenses/profile load again |
 
 SMS import is not available on iOS. Direct XLSX saving is implemented through an Android method channel and is not available on iOS. Do not interpret successful iOS compilation as proof these Android-only flows are available there.
+Gmail notification import is also Android-only. Cross-source deduplication requires the UPI transaction reference to be present in both the SMS text and Gmail notification payload; Gmail's notification may contain only a preview.
 
 ## 6. Validate before reporting a build as successful
 

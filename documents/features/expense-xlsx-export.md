@@ -56,7 +56,7 @@ Native error codes include `SAVE_FAILED` and `UNSUPPORTED_ANDROID_VERSION`. Flut
 
 ## Data/privacy
 
-Only filtered visible expenses are exported. No SMS message body is exported because SMS-derived expenses retain only parsed fields and a fixed note. Workbook bytes are generated in process and written locally.
+Only filtered visible expenses are exported. SMS message bodies and Gmail notification text are not exported; imported expenses retain parsed fields and a fixed source note. UPI references are stored only in the local import-deduplication table, not in the exported workbook. Workbook bytes are generated in process and written locally.
 
 ## Tests and limitations
 

@@ -91,6 +91,7 @@ The Flutter dashboard now uses a rounded, theme-matched bottom dock for Expenses
 
 - **Voice expense entry:** reachable from the expense screen and floating action. Device speech recognition produces an editable transcript; a local rule-based parser suggests amount and category, and the user confirms before saving. This path does not call Gemini.
 - **SMS expense import:** Android-only and explicitly user-started. It requests inbox permission only on import, checks up to 100 recent messages, and presents candidates for review before adding parsed expense fields. Message text is not saved or sent to a backend.
+- **Gmail notification import:** Android-only and opt-in from Profile settings. It reads only posted Gmail notification payloads, saves parsed expenses locally, and deduplicates against SMS imports by UPI transaction reference and amount when the reference is present.
 - **Investments:** locally saved entries capture name, asset type, SIP/one-time contribution, contribution amounts, start date, and assumed annual return. Future value is an estimate, not a guarantee.
 - **Loans and EMI:** locally saved entries capture principal, annual rate, flat/reducing-balance calculation, tenure, fees, and first payment date. EMI, estimated interest, total payable, and projected end date are calculated locally.
 - **Bills and reminders:** locally saved card/other bills include amount and due date. With notification permission, daily local reminders are scheduled no earlier than 365 days before and through the saved due date; they do not require network access.

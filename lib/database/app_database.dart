@@ -83,6 +83,21 @@ class Bills extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Deduplication log for SMS and Gmail expense imports.
+@DataClassName('DbNotifImportLog')
+class NotifImportLogs extends Table {
+  /// Stable hash used to suppress source-specific notification re-deliveries.
+  TextColumn get fingerprint => text()();
+  DateTimeColumn get importedAt => dateTime()();
+  TextColumn get accountSuffix => text().nullable()();
+  RealColumn get amount => real().nullable()();
+  DateTimeColumn get timestamp => dateTime().nullable()();
+  TextColumn get transactionReference => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {fingerprint};
+}
+
 @DriftDatabase(
   tables: [
     Profiles,
@@ -91,13 +106,23 @@ class Bills extends Table {
     Investments,
     Loans,
     Bills,
+    NotifImportLogs,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 4;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (migrator, from, to) async {
+      if (from < 4) {
+        await migrator.createTable(notifImportLogs);
+      }
+    },
+  );
 
   static QueryExecutor _openConnection() {
     return driftDatabase(

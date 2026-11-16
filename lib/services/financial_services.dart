@@ -7,17 +7,21 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../models/expense.dart';
 import '../models/financial_item.dart';
+import 'gmail_transaction_parser.dart';
+import 'transaction_import_identity.dart';
 
 class SmsExpenseCandidate {
   const SmsExpenseCandidate({
     required this.id,
     required this.expense,
     required this.preview,
+    required this.transactionReference,
   });
 
   final String id;
   final Expense expense;
   final String preview;
+  final String? transactionReference;
 }
 
 class SmsExpenseImporter {
@@ -61,65 +65,16 @@ class SmsExpenseImporter {
             note: 'Imported from SMS',
           ),
           preview: _safePreview(body),
+          transactionReference: parsed.transactionReference,
         ),
       );
     }
     return candidates;
   }
 
-  ({String title, double amount, String category})? _parseTransaction(
-    String body,
-  ) {
-    final normalized = body.replaceAll(',', '');
-    if (RegExp(
-      r'\b(otp|one.time.password|verification code)\b',
-      caseSensitive: false,
-    ).hasMatch(normalized)) {
-      return null;
-    }
-    if (!RegExp(
-      r'\b(debit|debited|spent|purchase|paid|transaction|payment)\b',
-      caseSensitive: false,
-    ).hasMatch(normalized)) {
-      return null;
-    }
-
-    final amountMatch = RegExp(
-      r'(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)|([0-9]+(?:\.[0-9]{1,2})?)\s*(?:inr|rs\.?|₹)',
-      caseSensitive: false,
-    ).firstMatch(normalized);
-    final rawAmount = amountMatch?.group(1) ?? amountMatch?.group(2);
-    final amount = rawAmount == null ? null : double.tryParse(rawAmount);
-    if (amount == null || amount <= 0) return null;
-
-    final lower = normalized.toLowerCase();
-    final category = lower.contains('fuel') || lower.contains('petrol')
-        ? 'Transport'
-        : lower.contains('grocery') || lower.contains('restaurant')
-        ? 'Food'
-        : lower.contains('pharmacy') || lower.contains('hospital')
-        ? 'Health'
-        : lower.contains('electricity') || lower.contains('utility')
-        ? 'Utilities'
-        : 'Miscellaneous';
-    final title = normalized
-        .replaceFirst(amountMatch!.group(0)!, '')
-        .replaceAll(
-          RegExp(
-            r'\b(available balance|avl bal|balance|debited|debit|spent|purchase|paid|transaction|payment|from|to|at|on|via|using|card|account|a/c|inr|rs\.?)\b',
-            caseSensitive: false,
-          ),
-          ' ',
-        )
-        .replaceAll(RegExp(r'[*xX]{3,}\d+'), '')
-        .replaceAll(RegExp(r'[^A-Za-z0-9 ]'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    return (
-      title: title.isEmpty ? category : title.split(' ').take(3).join(' '),
-      amount: amount,
-      category: category,
-    );
+  ({String title, double amount, String category, String? transactionReference})?
+      _parseTransaction(String body) {
+    return GmailTransactionParser.parseTransactionText(body);
   }
 
   String _safePreview(String body) {
