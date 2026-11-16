@@ -12,6 +12,14 @@ void main() {
     expect(parsed?.category, 'Food');
   });
 
+  test('parses an amount spoken in words', () {
+    final parsed = parser.parse('I spent twenty five rupees on lunch');
+
+    expect(parsed?.amount, 25);
+    expect(parsed?.title, 'lunch');
+    expect(parsed?.category, 'Food');
+  });
+
   test('does not create an expense without a positive amount', () {
     expect(parser.parse('I bought groceries'), isNull);
     expect(parser.parse('Spent zero rupees on lunch'), isNull);

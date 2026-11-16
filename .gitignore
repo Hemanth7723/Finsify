@@ -33,6 +33,11 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Local coding-agent configuration
+/.agents/
+/.opencode/
+/AGENTS.md
+
 # Symbolication related
 app.*.symbols
 
