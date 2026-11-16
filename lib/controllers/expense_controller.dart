@@ -97,6 +97,23 @@ class ExpenseController extends ChangeNotifier {
     }
   }
 
+  Future<bool> addImportedExpenseIfNew({
+    required Expense expense,
+    required String fingerprint,
+    String? transactionReference,
+  }) async {
+    final added = await _dbService.importExpenseIfNotDuplicate(
+      expense: expense,
+      fingerprint: fingerprint,
+      transactionReference: transactionReference,
+    );
+    if (!added) return false;
+    _expenses.add(expense);
+    _visibleDirty = true;
+    notifyListeners();
+    return true;
+  }
+
   Future<void> updateExpense(Expense expense) async {
     final index = _expenses.indexWhere((item) => item.id == expense.id);
     if (index == -1) return;

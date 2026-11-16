@@ -2,7 +2,7 @@
 
 ## Purpose and Scope
 
-The expense ledger enables users to create, inspect, edit, delete, sort, and filter personal expenses. All expense records are **persistently saved** in a local SQLite database powered by [Drift](https://drift.simonbinder.eu/) (`finsify.sqlite` on native platforms and IndexedDB via WebAssembly on web). Voice input and SMS import flows seamlessly integrate into the same controller and database ledger.
+The expense ledger enables users to create, inspect, edit, delete, sort, and filter personal expenses. All expense records are **persistently saved** in a local SQLite database powered by [Drift](https://drift.simonbinder.eu/) (`finsify.sqlite` on native platforms and IndexedDB via WebAssembly on web). Voice input, reviewed SMS imports, and optional Gmail notification imports use the same controller and database ledger.
 
 ## User Flow
 
@@ -19,7 +19,8 @@ ExpenseDashboard (lib/main.dart)
   ├─ CustomScrollView + SliverList.builder (Lazy 60 FPS rendering)
   ├─ Manual entry / Edit / Delete dialogs
   ├─ VoiceExpenseDialog ───────────────┐
-  └─ SMS import review ────────────────┤
+  ├─ SMS import review ────────────────┤
+  └─ Gmail notification listener ──────┤
                                        v
                          ExpenseController (ChangeNotifier)
                                        │
@@ -52,6 +53,7 @@ ExpenseDashboard (lib/main.dart)
 | `setCategoryFilter(String)` | Filters visible rows by category (`All` shows all records); marks cache dirty |
 | `setSortOrder(String)` | Sorts by `Newest`, `Oldest`, `Amount High`, or `Amount Low`; marks cache dirty |
 | `addExpense(Expense)` | Inserts into Drift SQLite and appends to in-memory list; notifies listeners |
+| `addImportedExpenseIfNew(...)` | Atomically saves an imported expense and identity; deduplicates by source fingerprint and, when present, matching UPI reference plus amount |
 | `updateExpense(Expense)` | Updates Drift SQLite record and updates in-memory item; notifies listeners |
 | `deleteExpense(int id)` | Deletes row from Drift SQLite and removes from in-memory list; notifies listeners |
 | `clearAll()` | Clears all rows in the `Expenses` table; notifies listeners |
@@ -83,9 +85,11 @@ Built-in categories: `Food`, `Transport`, `Entertainment`, `Shopping`, `Health`,
 - On Flutter Web, Drift utilizes WebAssembly (`sqlite3.wasm` and `drift_worker.js`) persisting to browser IndexedDB.
 - No transaction data is sent to external servers or cloud databases.
 - When importing expenses from SMS, raw message body text is never stored in the database.
+- Gmail notification text is discarded after parsing; an extracted UPI reference may be stored locally for cross-source deduplication.
 
 ## Tests
 
 - [`test/database_service_test.dart`](file:///e:/finsify/test/database_service_test.dart): Verifies Drift SQLite CRUD operations, in-memory test database injection, and persistence survival across controller instances.
 - [`test/widget_test.dart`](file:///e:/finsify/test/widget_test.dart): Verifies dashboard navigation, ledger rendering, manual entry dialogs, and profile routing.
 - [`test/voice_expense_parser_test.dart`](file:///e:/finsify/test/voice_expense_parser_test.dart): Tests voice transaction parsing.
+- [`test/gmail_transaction_parser_test.dart`](file:///e:/finsify/test/gmail_transaction_parser_test.dart): Tests Gmail parsing and atomic SMS/Gmail import deduplication.

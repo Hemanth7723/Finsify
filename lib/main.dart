@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'controllers/financial_controller.dart';
@@ -8,6 +9,7 @@ import 'models/expense.dart';
 import 'models/profile_data.dart';
 import 'services/database_service.dart';
 import 'services/financial_services.dart';
+import 'services/gmail_notif_import_service.dart';
 import 'services/xlsx_export_service.dart';
 import 'services/file_download_service.dart';
 import 'services/voice_recognition_service.dart';
@@ -556,7 +558,8 @@ class ExpenseDashboard extends StatefulWidget {
   State<ExpenseDashboard> createState() => _ExpenseDashboardState();
 }
 
-class _ExpenseDashboardState extends State<ExpenseDashboard> {
+class _ExpenseDashboardState extends State<ExpenseDashboard>
+    with WidgetsBindingObserver {
   late final ExpenseController _controller;
   late final bool _internalController;
   final _financialController = FinancialController();
@@ -565,6 +568,7 @@ class _ExpenseDashboardState extends State<ExpenseDashboard> {
   final _smsExpenseImporter = SmsExpenseImporter();
   final _billReminderService = BillReminderService();
   final _voiceRecognitionService = VoiceRecognitionService();
+  final _gmailNotifService = GmailNotifImportService();
   final _financialAddRequests = ValueNotifier<int>(0);
   late ProfileData _profile;
   String _currency = '\u20b9';
@@ -574,6 +578,8 @@ class _ExpenseDashboardState extends State<ExpenseDashboard> {
   int _navigationIndex = 0;
   bool _importingSms = false;
   bool _addActionPressed = false;
+  bool _gmailNotifEnabled = false;
+  bool _gmailNotifPermissionGranted = false;
 
   @override
   void initState() {
@@ -587,6 +593,7 @@ class _ExpenseDashboardState extends State<ExpenseDashboard> {
       _internalController = true;
     }
     _controller.addListener(_refresh);
+    WidgetsBinding.instance.addObserver(this);
     unawaited(_loadData());
   }
 
@@ -594,6 +601,7 @@ class _ExpenseDashboardState extends State<ExpenseDashboard> {
     await Future.wait([
       _loadExpenses(),
       _loadFinancialRecords(),
+      _loadGmailNotifSetting(),
     ]);
   }
 
@@ -605,14 +613,81 @@ class _ExpenseDashboardState extends State<ExpenseDashboard> {
     }
   }
 
+  Future<void> _loadGmailNotifSetting() async {
+    final val = await DatabaseService.instance.getSetting(
+      'gmail_notif_import_enabled',
+    );
+    final enabled = val == 'true';
+    final granted = await _gmailNotifService.isPermissionGranted();
+    if (!mounted) return;
+    setState(() {
+      _gmailNotifEnabled = enabled;
+      _gmailNotifPermissionGranted = granted;
+    });
+    if (enabled && granted) _startGmailListener();
+  }
+
+  /// Re-checks notification-access permission when the app returns from
+  /// Android Settings (the user may have just granted or revoked access).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_refreshGmailPermission());
+    }
+  }
+
+  Future<void> _refreshGmailPermission() async {
+    final granted = await _gmailNotifService.isPermissionGranted();
+    if (!mounted) return;
+    setState(() => _gmailNotifPermissionGranted = granted);
+    if (_gmailNotifEnabled && granted) {
+      _startGmailListener();
+    } else if (!granted) {
+      _gmailNotifService.stopListening();
+    }
+  }
+
+  void _startGmailListener() {
+    _gmailNotifService.startListening(
+      expenseController: _controller,
+      onImported: (msg) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), duration: const Duration(seconds: 3)),
+        );
+      },
+      onError: (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not import Gmail transaction: $error')),
+        );
+      },
+    );
+  }
+
+  Future<void> _setGmailNotifEnabled(bool enabled) async {
+    setState(() => _gmailNotifEnabled = enabled);
+    await DatabaseService.instance.setSetting(
+      'gmail_notif_import_enabled',
+      enabled.toString(),
+    );
+    if (enabled && _gmailNotifPermissionGranted) {
+      _startGmailListener();
+    } else {
+      _gmailNotifService.stopListening();
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.removeListener(_refresh);
     if (_internalController) {
       _controller.dispose();
     }
     _financialController.dispose();
     _financialAddRequests.dispose();
+    _gmailNotifService.dispose();
     super.dispose();
   }
 
@@ -1875,13 +1950,19 @@ class _ExpenseDashboardState extends State<ExpenseDashboard> {
       final chosen = available
           .where((candidate) => selected.contains(candidate.id))
           .toList();
+      var importedCount = 0;
       for (final candidate in chosen) {
-        _controller.addExpense(candidate.expense);
+        final added = await _controller.addImportedExpenseIfNew(
+          expense: candidate.expense,
+          fingerprint: candidate.id,
+          transactionReference: candidate.transactionReference,
+        );
+        if (added) importedCount++;
       }
-      if (chosen.isNotEmpty && mounted) {
+      if (importedCount > 0 && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${chosen.length} expense(s) imported from SMS.'),
+            content: Text('$importedCount expense(s) imported from SMS.'),
           ),
         );
       }
@@ -2189,6 +2270,180 @@ class _ExpenseDashboardState extends State<ExpenseDashboard> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 20),
+                    if (!kIsWeb &&
+                        defaultTargetPlatform == TargetPlatform.android)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.surfaceInset,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: colors.outline, width: 2),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.notifications_active_outlined,
+                                  color: colors.accent,
+                                  size: 28,
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Gmail Notification Import',
+                                        style: TextStyle(
+                                          color: _dialogText(
+                                            context,
+                                            dark: darkMode,
+                                          ),
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      Text(
+                                        _gmailNotifPermissionGranted
+                                            ? (_gmailNotifEnabled
+                                                  ? 'Auto-recording active'
+                                                  : 'Import disabled')
+                                            : 'Notification access required',
+                                        style: TextStyle(
+                                          color: _dialogSecondary(
+                                            context,
+                                            dark: darkMode,
+                                          ),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Switch.adaptive(
+                                  value:
+                                      _gmailNotifEnabled &&
+                                      _gmailNotifPermissionGranted,
+                                  activeThumbColor: colors.accent,
+                                  onChanged: _gmailNotifPermissionGranted
+                                      ? (value) {
+                                          setDialogState(() {
+                                            _setGmailNotifEnabled(value);
+                                          });
+                                        }
+                                      : null,
+                                ),
+                              ],
+                            ),
+                            if (!_gmailNotifPermissionGranted) ...[
+                              const SizedBox(height: 10),
+                              Text(
+                                'Grant notification access in Android settings so Finsify can detect bank payment confirmations from Gmail.',
+                                style: TextStyle(
+                                  color: _dialogSecondary(
+                                    context,
+                                    dark: darkMode,
+                                  ),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: colors.accent,
+                                  ),
+                                  icon: const Icon(Icons.open_in_new, size: 16),
+                                  label: const Text(
+                                    'Grant Access',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  onPressed: () async {
+                                    await _gmailNotifService
+                                        .openPermissionSettings();
+                                  },
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 6),
+                            Text(
+                              'Privacy: Only Gmail notifications are read — not email messages.',
+                              style: TextStyle(
+                                color: _dialogAccent(
+                                  context,
+                                  dark: darkMode,
+                                ).withValues(alpha: 0.8),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (!kIsWeb &&
+                        defaultTargetPlatform == TargetPlatform.iOS)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.surfaceInset,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: colors.outline, width: 2),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: _dialogSecondary(context, dark: darkMode),
+                              size: 24,
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Gmail Notification Import',
+                                    style: TextStyle(
+                                      color: _dialogText(
+                                        context,
+                                        dark: darkMode,
+                                      ),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Not available on iOS — Apple restricts third-party cross-app notification access.',
+                                    style: TextStyle(
+                                      color: _dialogSecondary(
+                                        context,
+                                        dark: darkMode,
+                                      ),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     const SizedBox(height: 20),
                     Row(
                       children: [

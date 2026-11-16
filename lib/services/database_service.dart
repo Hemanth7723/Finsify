@@ -277,6 +277,56 @@ class DatabaseService {
     );
   }
 
+  // --- Notification Import Log (deduplication) ---
+
+  /// Saves an imported expense once, matching SMS and Gmail by transaction
+  /// reference when both sources include one.
+  Future<bool> importExpenseIfNotDuplicate({
+    required Expense expense,
+    required String fingerprint,
+    String? transactionReference,
+  }) =>
+      _database.transaction(() async {
+        final logs = _database.notifImportLogs;
+        final sameImport = await (_database.select(logs)
+              ..where((t) => t.fingerprint.equals(fingerprint))
+              ..limit(1))
+            .getSingleOrNull();
+        if (sameImport != null) return false;
+
+        if (transactionReference != null) {
+          final matchingPayment = await (_database.select(logs)
+                ..where(
+                  (t) =>
+                      t.transactionReference.equals(transactionReference) &
+                      t.amount.equals(expense.amount),
+                )
+                ..limit(1))
+              .getSingleOrNull();
+          if (matchingPayment != null) return false;
+        }
+
+        await _database.into(_database.expenses).insertOnConflictUpdate(
+          ExpensesCompanion(
+            id: Value(expense.id),
+            title: Value(expense.title),
+            amount: Value(expense.amount),
+            category: Value(expense.category),
+            timestamp: Value(expense.timestamp),
+            note: Value(expense.note),
+          ),
+        );
+        await _database.into(logs).insert(
+          NotifImportLogsCompanion.insert(
+            fingerprint: fingerprint,
+            importedAt: DateTime.now(),
+            amount: Value(expense.amount),
+            transactionReference: Value(transactionReference),
+          ),
+        );
+        return true;
+      });
+
   Future<void> close() async {
     await _database.close();
   }

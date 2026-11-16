@@ -40,6 +40,7 @@
 | **Filtering** | By category (case-insensitive) or show all |
 | **Voice Entry (No AI parsing)** | Device speech recognition with local rule-based amount/category parsing and an editable preview; available speech services vary by device |
 | **SMS Import (Android)** | On demand, checks up to 100 recent inbox messages and lets the user review candidates before importing |
+| **Gmail Notification Import (Android)** | Optionally records debit alerts from Gmail notifications; matches SMS imports by UPI transaction reference and amount |
 
 ### 🧭 Financial Planning
 | Feature | Description |
@@ -60,6 +61,7 @@
 - **On-Device SQLite Persistence (Drift)** — Expenses, user profile, investments, loans, bills, and app settings are persistently stored in a local SQLite database (`finsify.sqlite` / `finsify.db`) using Drift. Data survives app closing, restart, and device reboot.
 - **No Tracking** — No analytics or crash reporting
 - **SMS Privacy** — Inbox access is requested only when you choose import; results are reviewed on device and message text is not stored
+- **Gmail Notification Privacy** — Notification access is opt-in; only Gmail notification payloads are parsed locally, and raw text is not stored
 - **Speech Privacy** — Expense parsing is local and does not use AI; transcription is provided by the device speech service, whose network behavior depends on platform settings
 
 ### 📤 Export
@@ -79,14 +81,14 @@
 |-------|-------------------------|
 | **UI** | Flutter Widgets and Material 3 |
 | **State** | `ChangeNotifier` controllers |
-| **Expense Records** | In-memory for the current process |
-| **Investments, Loans, Bills** | `SharedPreferences` on-device persistence |
+| **Expense Records** | Drift SQLite persistence with an in-memory controller cache |
+| **Investments, Loans, Bills** | Drift SQLite persistence; legacy `SharedPreferences` records are migrated |
 | **Voice** | `speech_to_text` transcription and local rule-based parsing |
 | **SMS** | Android inbox query with permission request and user review |
-| **Notifications** | `flutter_local_notifications` with timezone scheduling |
+| **Notifications** | Gmail notification listener on Android; `flutter_local_notifications` with timezone scheduling for bill reminders |
 | **Export** | `.xlsx` generation and Android Downloads method channel |
 
-> **Platform notes:** SMS import is Android-only. Bill reminders support Android and iOS. Direct `.xlsx` saving is Android-only. Financial projections are estimates, not guarantees.
+> **Platform notes:** SMS import and Gmail notification import are Android-only. Bill reminders support Android and iOS. Direct `.xlsx` saving is Android-only. Financial projections are estimates, not guarantees.
 
 ---
 
@@ -105,11 +107,12 @@
 │  Expense, Investment, Loan, Bill             │
 ├─────────────────────────────────────────────┤
 │           Service Layer                     │
-│  Voice/SMS, reminders, XLSX generation      │
+│  Voice/SMS/Gmail notifications, reminders,  │
+│  XLSX generation                            │
 └─────────────────────────────────────────────┘
 ```
 
-**Data flow:** `ExpenseController` and `FinancialController` interact directly with `DatabaseService` backed by `AppDatabase` (Drift SQLite). All transactions, investments, loans, bills, and profile data are committed to the local SQLite database. On app launch, saved profile details and expenses are automatically restored, bypassing onboarding if a profile already exists. Voice parsing is rule-based and local; SMS and reminders use platform services.
+**Data flow:** `ExpenseController` and `FinancialController` interact directly with `DatabaseService` backed by `AppDatabase` (Drift SQLite). All transactions, investments, loans, bills, and profile data are committed to the local SQLite database. On app launch, saved profile details and expenses are automatically restored, bypassing onboarding if a profile already exists. Voice parsing is rule-based and local; SMS import and Gmail notification listening use Android platform services. SMS/Gmail imports are atomically deduplicated by source fingerprint and, when available, shared UPI transaction reference plus amount.
 
 **Kotlin Source Reference (complete):**
 ```
@@ -130,7 +133,7 @@ finsify/
 │   ├── main.dart                    # App entry, onboarding, dashboard and navigation
 │   ├── controllers/                 # Expense and finance state
 │   ├── models/                      # Expense, investment, loan and bill models
-│   ├── services/                    # SMS, speech, reminders, and XLSX export
+│   ├── services/                    # SMS/Gmail imports, speech, reminders, and XLSX export
 │   ├── theme/                       # Shared light/dark palette and Material themes
 │   └── widgets/                     # Finance pages, chart and voice-entry dialog
 ├── test/
@@ -202,6 +205,7 @@ flutter run -d <device-id>   # android, ios, chrome, windows, macos, linux
 - ✅ Responsive breakpoints (<600px, <400px)
 - ✅ Voice expense entry without AI parsing
 - ✅ On-demand SMS transaction import on Android
+- ✅ Optional Gmail notification expense import on Android with SMS cross-source UPI-reference deduplication
 - ✅ Locally stored investments, loans and bills with estimated return/EMI calculations
 - ✅ Daily local bill due-date reminders on Android and iOS
 - ✅ Screen and component transitions that respect reduced-motion preferences

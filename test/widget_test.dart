@@ -195,7 +195,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Secure Identity Controls'), findsOneWidget);
 
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.byType(Switch).first);
     await tester.pumpAndSettle();
     expect(find.text('Dark Mode Enabled'), findsOneWidget);
     expect(tester.takeException(), isNull);

@@ -4,10 +4,11 @@ These guides describe the Flutter implementation in `lib/` as it exists today. E
 
 | Guide | Feature |
 |---|---|
-| [Expense ledger](expense-ledger.md) | Manual entry, edit/delete, categories, filtering, sorting, in-memory lifecycle |
+| [Expense ledger](expense-ledger.md) | Manual entry, voice/SMS/Gmail imports, edit/delete, categories, filtering and sorting |
 | [Analytics](analytics.md) | Period summaries, category analysis, chart data and rendering |
 | [Voice expense entry](voice-expense-entry.md) | Device speech recognition, local parser, review and save |
-| [SMS expense import](sms-expense-import.md) | Android inbox permission, candidate parsing, user review and import |
+| [SMS expense import](sms-expense-import.md) | Android inbox permission, candidate review, and UPI-reference deduplication with Gmail imports |
+| [Gmail notification import](gmail-notification-import.md) | Android notification access, local parsing, auto-save, and UPI-reference deduplication with SMS imports |
 | [Investments](investments.md) | One-time/SIP records and estimated value calculations |
 | [Loans and EMI](loans-and-emi.md) | Loan inputs, flat/reducing-balance calculations and end date |
 | [Bills](bills.md) | Card/other bills, due dates, recurrence, payment and local storage |

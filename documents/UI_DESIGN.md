@@ -22,6 +22,7 @@ Scrollable form for display name, email, bio/savings goal, and optional Gemini A
 - A persistent center "+" action that adds an expense, investment, loan, or bill according to the selected screen.
 - Total-spend hero metric.
 - Manual add, local voice-entry, and on-demand SMS import actions.
+- Optional Android Gmail notification import, enabled from Profile settings after granting Android notification access.
 - Export/share action.
 - Sort selector and category filter chips.
 - Scrollable expense ledger.
@@ -41,7 +42,7 @@ The recorder presents listening state, editable transcript, errors, and a locall
 - Investments capture asset class, SIP/one-time contributions, start date, and assumed return.
 - Loans capture principal, flat/reducing interest type, rate, tenure, fees, and payment start date; the screen estimates EMI, interest, total payable, and end date.
 - Bills capture card/bill type, amount, and due date. Daily local notifications remind the user before the saved due date.
-- These user-entered records are stored locally. SMS inbox access is Android-only and is requested only after the user explicitly starts import; detected transactions require confirmation.
+- These user-entered records are stored locally. SMS inbox access is Android-only and is requested only after the user explicitly starts import; detected transactions require confirmation. Gmail notification import is Android-only, opt-in, and parses Gmail notification payloads locally.
 
 ## 3. Interaction Rules
 

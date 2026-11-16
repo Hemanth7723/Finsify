@@ -30,15 +30,18 @@ jobs:
 
       # Android APK
       - name: Build Android APK
-        run: flutter build apk --release
+        run: flutter build apk --release --split-per-abi
 
-      - name: Copy Android APK
+      - name: Copy Android APKs
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release_artifacts
-          cp build/app/outputs/flutter-apk/app-release.apk \
-            "release_artifacts/Finsify_${GITHUB_REF_NAME}.apk"
+          for apk in build/app/outputs/flutter-apk/app-*-release.apk; do
+            abi="${apk##*/app-}"
+            abi="${abi%-release.apk}"
+            cp "$apk" "release_artifacts/Finsify_${GITHUB_REF_NAME}_${abi}.apk"
+          done
 
       # Unsigned iOS IPA (build the app bundle without signing, then package as IPA)
       - name: Build unsigned iOS app bundle
@@ -82,6 +85,9 @@ jobs:
           files: |
             release_artifacts/*.apk
             release_artifacts/*.ipa
+          body: |
+            Download the APK that matches your Android device. Most modern Android phones use `arm64-v8a`.
+            `armeabi-v7a` is for 32-bit ARM devices; `x86_64` is mainly for emulators and x86 devices.
           draft: false
           prerelease: false
 
